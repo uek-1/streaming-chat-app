@@ -4,7 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-
+use futures_util::{sink::SinkExt, stream::{StreamExt, SplitSink, SplitStream}};
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Serialize)]
@@ -27,20 +27,41 @@ async fn handler(ws : WebSocketUpgrade) -> Response {
     ws.on_upgrade(handle_socket)
 }
 
-//TODO: Recieve and Send messages!
-async fn handle_socket(mut socket : WebSocket) {
-    let test_msg = ChatMessage {
-        content: String::from("test"),
-    };
-    
-    for _i in 0..10 {
-        socket.send(Message::Text(
-            serde_json::to_string(&test_msg).unwrap()
-            ))
-            .await
-            .unwrap();
-    }
+async fn handle_socket(mut socket: WebSocket) {
+    let (mut sender, mut receiver) = socket.split();
 
-    println!("Test Message Recieved!");
+    tokio::spawn(write(sender));
+    tokio::spawn(read(receiver));
 }
+
+async fn read(receiver: SplitStream<WebSocket>) {
+    let mut receiver = receiver;
+
+    while let Some(chat_msg) = receiver.next().await {
+        let msg = if let Ok(msg) = chat_msg {
+            println!("{:?}", msg);
+            msg
+        }
+        else {
+            return
+        };
+    }
+    
+    println!("END WHILE");
+}
+
+async fn write(sender: SplitSink<WebSocket, Message>) {
+    let mut sender = sender;
+    let test_msg = ChatMessage {
+        content: String::from("First Message"),
+    };
+    sender.send(Message::Text(
+        serde_json::to_string(&test_msg).unwrap()
+    ))
+    .await
+    .unwrap();
+
+    println!("TEST MESSAGE RECIEVED");
+}
+
 
