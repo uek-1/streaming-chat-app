@@ -1,15 +1,52 @@
+use core::pin::Pin;
+use std::task::{Context, Poll};
+
+
 use axum::{
     extract::ws::{WebSocketUpgrade, WebSocket, Message},
     routing::get,
     response::{IntoResponse, Response},
     Router,
 };
-use futures_util::{sink::SinkExt, stream::{StreamExt, SplitSink, SplitStream}};
+use futures_util::{sink::{Sink, SinkExt}, stream::{self, Stream, StreamExt, SplitSink, SplitStream}, Future};
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Serialize)]
 struct ChatMessage {
     content: String,
+}
+
+#[derive(Clone, PartialEq, Serialize)]
+struct ChatStream {
+}
+
+impl Stream for ChatStream {
+    type Item = String;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Poll::Ready(None)
+    }
+}
+
+impl Sink<String> for ChatStream {
+    type Error = &'static str;
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+         Poll::Ready(Ok(()))   
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: String) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
 }
 
 #[tokio::main]
@@ -28,16 +65,19 @@ async fn handler(ws : WebSocketUpgrade) -> Response {
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    let (mut sender, mut receiver) = socket.split();
+    let (mut socket_sender, mut socket_receiver) = socket.split();
 
-    tokio::spawn(write(sender));
-    tokio::spawn(read(receiver));
+    let chat_stream = ChatStream{};
+    let (mut chat_stream_sender, mut chat_stream_receiver) = chat_stream.split();
+
+    tokio::spawn(write(socket_sender, chat_stream_receiver));
+    tokio::spawn(read(socket_receiver, chat_stream_sender));
 }
 
-async fn read(receiver: SplitStream<WebSocket>) {
-    let mut receiver = receiver;
-
-    while let Some(chat_msg) = receiver.next().await {
+async fn read(socket_receiver: SplitStream<WebSocket>, chat_message_sender: SplitSink<ChatStream, String>) {
+    let mut socket_receiver = socket_receiver;
+    let mut chat_message_sender = chat_message_sender;
+    while let Some(chat_msg) = socket_receiver.next().await {
         let msg = if let Ok(msg) = chat_msg {
             println!("{:?}", msg);
             msg
@@ -45,23 +85,40 @@ async fn read(receiver: SplitStream<WebSocket>) {
         else {
             return
         };
+
+        if let Message::Text(msg_text) = msg {
+            chat_message_sender.send(msg_text)
+                .await
+                .unwrap();
+        } 
     }
     
     println!("END WHILE");
 }
 
-async fn write(sender: SplitSink<WebSocket, Message>) {
-    let mut sender = sender;
+async fn write(socket_sender: SplitSink<WebSocket, Message>, chat_message_receiver: SplitStream<ChatStream>) {
+    let mut socket_sender = socket_sender;
+    let mut chat_message_receiver = chat_message_receiver;
+
     let test_msg = ChatMessage {
         content: String::from("First Message"),
     };
-    sender.send(Message::Text(
+    socket_sender.send(Message::Text(
         serde_json::to_string(&test_msg).unwrap()
     ))
     .await
     .unwrap();
 
-    println!("TEST MESSAGE RECIEVED");
+    println!("FIRST MESSAGE RECIEVED");
+    
+    while let Some(chat_msg) = chat_message_receiver.next().await {
+        socket_sender.send(Message::Text(
+            serde_json::to_string(&chat_msg).unwrap()
+        ))
+        .await
+        .unwrap();
+    }
+
 }
 
 
