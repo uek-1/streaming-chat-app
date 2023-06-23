@@ -7,6 +7,7 @@
   $: content = null;
   $: receivedMessages = [];
   let thisUsername = "";
+  let time = new Date();
 
   onMount (() => {
     console.log(window.location.host.split(":"));
@@ -21,18 +22,22 @@
 
 
   function handleMessage(msg) {
-    console.log("test");
+    console.log(msg);
     let data = JSON.parse(msg.data);
     console.log(data);
-    content = data.content;
-    console.log(content);
-    receivedMessages.push(`${content}`);
+    receivedMessages.push(`${data.time.trim()} ${data.username.trim()} : ${data.message.trim()}`);
     receivedMessages = receivedMessages;
   }
 
   async function onSubmit(e) {
-    console.log(thisUsername, "SENT", inputContent);
-    ws.send(`${thisUsername} : ${inputContent}`);
+    const chat_message = {
+      time : `${time.getHours()}:${time.getMinutes()}`,
+      username : thisUsername,
+      message : inputContent
+    };
+
+    console.log(chat_message);
+    ws.send(JSON.stringify(chat_message));
     inputContent = "";
   }
 
