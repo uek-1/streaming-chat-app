@@ -72,36 +72,59 @@
 </script>
 
 <style>
+  .chat-box {
+    width : 30vw; 
+    height : 80vh;
+    outline-style : solid;
+    outline-color : black;
+    overflow-y: scroll;
+  }
+
+  .chat-table {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+
   .chat-table-time {
-    color : grey
+    color : grey;
+    align-self : left;
   }
   
   .chat-table-username {
     font-weight : bold;
+    align-self : left;
+
   }
 
   .chat-table-message {
     color: black;
   }
+
+  .chat-form {
+    align-self : bottom;
+  }
 </style>
 
-<Login on:username={createChat}/>
+<center><Login on:username={createChat}/>
 {#if thisUsername != ""}
   <h1>CHAT:</h1>
-
-  <table class = "chat-table"> 
-    {#each receivedMessages as item}
-      <tr>
-        <td class = "chat-table-time">{item.time}</td>
-        <td style = {`color : ${getUsernameColor(item.username)}`} class = "chat-table-username">
-          {item.username}
-        </td>
-        <td class = "chat-table-message">{item.message}</td>
-      </tr>
-    {/each}
-  </table>
-  <form on:submit={onSubmit}>
-    <input type="text" bind:value={inputContent} autofocus>
-    <button>"Chat"</button>
-  </form>
+  <div class = "chat-box">
+    <table class = "chat-table"> 
+      {#each receivedMessages as item}
+        <tr>
+          <td class = "chat-table-time">{item.time}</td>
+          <td style = {`color : ${getUsernameColor(item.username)}`} class = "chat-table-username">
+            {item.username}
+          </td>
+          <td class = "chat-table-message">{item.message}</td>
+        </tr>
+      {/each}
+    </table>
+    <form on:submit={onSubmit} class = "chat-form">
+      <input type="text" bind:value={inputContent} autofocus>
+      <button>"Chat"</button>
+    </form>
+  </div>
 {/if}
+</center>
