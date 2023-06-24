@@ -78,6 +78,7 @@
     outline-style : solid;
     outline-color : black;
     overflow-y: scroll;
+    overflow-x: hidden;
   }
 
   .chat-table {
@@ -89,11 +90,13 @@
   .chat-table-time {
     color : grey;
     align-self : left;
+    vertical-align: top;
   }
   
   .chat-table-username {
     font-weight : bold;
     align-self : left;
+    vertical-align: top;
 
   }
 
