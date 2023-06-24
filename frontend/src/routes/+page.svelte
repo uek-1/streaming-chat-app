@@ -6,8 +6,10 @@
   $: inputContent = "";
   $: content = null;
   $: receivedMessages = [];
+  $: userColors = {"test" : "blue"};
   let thisUsername = "";
   let time = new Date();
+  const validUsernameColors = ["blue", "red", "yellow", "green", "orange", "violet" , "indigo"];
 
   onMount (() => {
     console.log(window.location.host.split(":"));
@@ -25,13 +27,34 @@
     console.log(msg);
     let data = JSON.parse(msg.data);
     console.log(data);
-    receivedMessages.push(`${data.time.trim()} ${data.username.trim()} : ${data.message.trim()}`);
+    receivedMessages.push({
+      time : data.time.replaceAll("\"", ""),  
+      username: data.username.replaceAll("\"", ""), 
+      message: data.message.replaceAll("\"", "")
+    });
     receivedMessages = receivedMessages;
   }
 
+  function getUsernameColor(username) {
+    if (userColors[username] != undefined) {
+      return userColors[username];
+    }
+    userColors[username] = validUsernameColors[Math.floor(Math.random() * validUsernameColors.length)];
+    return userColors[username];
+  }
+
   async function onSubmit(e) {
+    let hourString = (time.getHours() % 12).toString();
+    if (hourString.length < 2) {
+      hourString = `0${hourString}`;
+    }
+  
+    let minuteString = time.getMinutes().toString();
+    if (minuteString.length < 2) {
+      minuteString = `0${minuteString}`
+    }
     const chat_message = {
-      time : `${time.getHours()}:${time.getMinutes()}`,
+      time : `${hourString}:${minuteString}`,
       username : thisUsername,
       message : inputContent
     };
@@ -49,8 +72,16 @@
 </script>
 
 <style>
-  .chat-table {
-    color : purple
+  .chat-table-time {
+    color : grey
+  }
+  
+  .chat-table-username {
+    font-weight : bold;
+  }
+
+  .chat-table-message {
+    color: black;
   }
 </style>
 
@@ -60,7 +91,13 @@
 
   <table class = "chat-table"> 
     {#each receivedMessages as item}
-      <tr>{item}</tr>
+      <tr>
+        <td class = "chat-table-time">{item.time}</td>
+        <td style = {`color : ${getUsernameColor(item.username)}`} class = "chat-table-username">
+          {item.username}
+        </td>
+        <td class = "chat-table-message">{item.message}</td>
+      </tr>
     {/each}
   </table>
   <form on:submit={onSubmit}>
